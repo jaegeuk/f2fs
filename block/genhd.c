@@ -587,14 +587,14 @@ void add_disk(struct gendisk *disk)
 	WARN_ON(disk->minors && !(disk->major || disk->first_minor));
 	WARN_ON(!disk->minors && !(disk->flags & GENHD_FL_EXT_DEVT));
 
-	disk->flags |= GENHD_FL_UP;
-
 	retval = blk_alloc_devt(&disk->part0, &devt);
 	if (retval) {
 		WARN_ON(1);
 		return;
 	}
 	disk_to_dev(disk)->devt = devt;
+
+	disk->flags |= GENHD_FL_UP;
 
 	/* ->major and ->first_minor aren't supposed to be
 	 * dereferenced from here on, but set them just in case.
@@ -1105,7 +1105,7 @@ static void disk_release(struct device *dev)
 	disk_replace_part_tbl(disk, NULL);
 	free_part_stats(&disk->part0);
 	free_part_info(&disk->part0);
-	if (disk->queue)
+	if (disk->queue && disk->flags & GENHD_FL_UP)
 		blk_put_queue(disk->queue);
 	kfree(disk);
 }
