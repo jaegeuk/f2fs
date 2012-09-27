@@ -608,8 +608,8 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	/*
 	 * A queue starts its life with bypass turned on to avoid
 	 * unnecessary bypass on/off overhead and nasty surprises during
-	 * init.  The initial bypass will be finished at the end of
-	 * blk_init_allocated_queue().
+	 * init.  The initial bypass will be finished when the queue is
+	 * registered by blk_register_queue().
 	 */
 	q->bypass_depth = 1;
 	__set_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
@@ -696,7 +696,7 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
 	q->unprep_rq_fn		= NULL;
-	q->queue_flags		= QUEUE_FLAG_DEFAULT;
+	q->queue_flags		|= QUEUE_FLAG_DEFAULT;
 
 	/* Override internal queue lock with supplied lock pointer */
 	if (lock)
@@ -712,11 +712,6 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	/* init elevator */
 	if (elevator_init(q, NULL))
 		return NULL;
-
-	blk_queue_congestion_threshold(q);
-
-	/* all done, end the initial bypass */
-	blk_queue_bypass_end(q);
 	return q;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue);
@@ -1659,8 +1654,8 @@ generic_make_request_checks(struct bio *bio)
 		goto end_io;
 	}
 
-	if (unlikely(!(bio->bi_rw & REQ_DISCARD) &&
-		     nr_sectors > queue_max_hw_sectors(q))) {
+	if (likely(bio_is_rw(bio) &&
+		   nr_sectors > queue_max_hw_sectors(q))) {
 		printk(KERN_ERR "bio too big device %s (%u > %u)\n",
 		       bdevname(bio->bi_bdev, b),
 		       bio_sectors(bio),
@@ -1701,8 +1696,12 @@ generic_make_request_checks(struct bio *bio)
 
 	if ((bio->bi_rw & REQ_DISCARD) &&
 	    (!blk_queue_discard(q) ||
-	     ((bio->bi_rw & REQ_SECURE) &&
-	      !blk_queue_secdiscard(q)))) {
+	     ((bio->bi_rw & REQ_SECURE) && !blk_queue_secdiscard(q)))) {
+		err = -EOPNOTSUPP;
+		goto end_io;
+	}
+
+	if (bio->bi_rw & REQ_WRITE_SAME && !bdev_write_same(bio->bi_bdev)) {
 		err = -EOPNOTSUPP;
 		goto end_io;
 	}
@@ -1812,15 +1811,20 @@ EXPORT_SYMBOL(generic_make_request);
  */
 void submit_bio(int rw, struct bio *bio)
 {
-	int count = bio_sectors(bio);
-
 	bio->bi_rw |= rw;
 
 	/*
 	 * If it's a regular read/write or a barrier with data attached,
 	 * go through the normal accounting stuff before submission.
 	 */
-	if (bio_has_data(bio) && !(rw & REQ_DISCARD)) {
+	if (bio_has_data(bio)) {
+		unsigned int count;
+
+		if (unlikely(rw & REQ_WRITE_SAME))
+			count = bdev_logical_block_size(bio->bi_bdev) >> 9;
+		else
+			count = bio_sectors(bio);
+
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
 		} else {
@@ -1866,11 +1870,10 @@ EXPORT_SYMBOL(submit_bio);
  */
 int blk_rq_check_limits(struct request_queue *q, struct request *rq)
 {
-	if (rq->cmd_flags & REQ_DISCARD)
+	if (!rq_mergeable(rq))
 		return 0;
 
-	if (blk_rq_sectors(rq) > queue_max_sectors(q) ||
-	    blk_rq_bytes(rq) > queue_max_hw_sectors(q) << 9) {
+	if (blk_rq_sectors(rq) > blk_queue_get_max_sectors(q, rq->cmd_flags)) {
 		printk(KERN_ERR "%s: over max size limit.\n", __func__);
 		return -EIO;
 	}
@@ -2340,7 +2343,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	req->buffer = bio_data(req->bio);
 
 	/* update sector only for requests with clear definition of sector */
-	if (req->cmd_type == REQ_TYPE_FS || (req->cmd_flags & REQ_DISCARD))
+	if (req->cmd_type == REQ_TYPE_FS)
 		req->__sector += total_bytes >> 9;
 
 	/* mixed attributes always follow the first bio */
