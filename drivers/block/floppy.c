@@ -4337,6 +4337,11 @@ out_put_disk:
 		if (disks[drive]->queue) {
 			del_timer_sync(&motor_off_timer[drive]);
 			blk_cleanup_queue(disks[drive]->queue);
+			/*
+			 * put_disk() is not paired with add_disk() and
+			 * will put queue reference one extra time. fix it.
+			 */
+			disks[drive]->queue = NULL;
 		}
 		put_disk(disks[drive]);
 	}
@@ -4564,6 +4569,14 @@ static void __exit floppy_module_exit(void)
 			platform_device_unregister(&floppy_device[drive]);
 		}
 		blk_cleanup_queue(disks[drive]->queue);
+
+		/*
+		 * These disks have not called add_disk().  Don't put down
+		 * queue reference in put_disk().
+		 */
+		if (!(allowed_drive_mask & (1 << drive)) ||
+		    fdc_state[FDC(drive)].version == FDC_NONE)
+			disks[drive]->queue = NULL;
 
 		put_disk(disks[drive]);
 	}
