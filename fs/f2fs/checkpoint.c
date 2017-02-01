@@ -1253,7 +1253,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	clear_sbi_flag(sbi, SBI_IS_DIRTY);
 	clear_sbi_flag(sbi, SBI_NEED_CP);
-	__set_cp_next_pack(sbi);
+	//__set_cp_next_pack(sbi);
 
 	/*
 	 * redirty superblock if metadata like node page or inode cache is

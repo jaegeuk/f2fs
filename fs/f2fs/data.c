@@ -1366,12 +1366,13 @@ static inline bool need_inplace_update(struct f2fs_io_info *fio)
 {
 	struct inode *inode = fio->page->mapping->host;
 
-	if (S_ISDIR(inode->i_mode) || f2fs_is_atomic_file(inode))
-		return false;
+	//if (S_ISDIR(inode->i_mode)) || f2fs_is_atomic_file(inode))
+	if (f2fs_is_atomic_file(inode))
+		return true;
 	if (is_cold_data(fio->page))
 		return false;
 	if (IS_ATOMIC_WRITTEN_PAGE(fio->page))
-		return false;
+		return true;
 
 	return need_inplace_update_policy(inode, fio);
 }
@@ -1382,6 +1383,12 @@ static inline bool valid_ipu_blkaddr(struct f2fs_io_info *fio)
 		return false;
 	if (fio->old_blkaddr == NULL_ADDR)
 		return false;
+	if (IS_ATOMIC_WRITTEN_PAGE(fio->page) && fio->sbi->s_ndevs > 1) {
+		struct f2fs_sb_info *sbi = fio->sbi;
+
+		if (fio->old_blkaddr > FDEV(0).end_blk)
+			return false;
+	}
 	return true;
 }
 
