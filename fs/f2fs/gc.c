@@ -54,6 +54,8 @@ static int gc_thread_func(void *data)
 			f2fs_stop_checkpoint(sbi, false);
 		}
 #endif
+		if (test_opt(sbi, FORCE_USER))
+			goto do_balance;
 
 		/*
 		 * [GC triggering condition]
@@ -90,7 +92,7 @@ static int gc_thread_func(void *data)
 
 		trace_f2fs_background_gc(sbi->sb, wait_ms,
 				prefree_segments(sbi), free_segments(sbi));
-
+do_balance:
 		/* balancing f2fs's metadata periodically */
 		f2fs_balance_fs_bg(sbi);
 
