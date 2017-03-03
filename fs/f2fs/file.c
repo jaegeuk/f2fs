@@ -143,6 +143,10 @@ static inline bool need_do_checkpoint(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	bool need_cp = false;
 
+	if (test_opt(sbi, FORCE_USER) && S_ISREG(inode->i_mode) &&
+					inode->i_nlink == 1)
+		return false;
+
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
 		need_cp = true;
 	else if (is_sbi_flag_set(sbi, SBI_NEED_CP))
