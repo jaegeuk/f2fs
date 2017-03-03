@@ -109,6 +109,7 @@ enum {
 	Opt_nolazytime,
 	Opt_usrquota,
 	Opt_grpquota,
+	Opt_force_user,
 	Opt_err,
 };
 
@@ -146,6 +147,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_nolazytime, "nolazytime"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_grpquota, "grpquota"},
+	{Opt_force_user, "force_user"},
 	{Opt_err, NULL},
 };
 
@@ -399,6 +401,9 @@ static int parse_options(struct super_block *sb, char *options)
 					"quota operations not supported");
 			break;
 #endif
+		case Opt_force_user:
+			set_opt(sbi, FORCE_USER);
+			break;
 		default:
 			f2fs_msg(sb, KERN_ERR,
 				"Unrecognized mount option \"%s\" or missing value",
@@ -814,6 +819,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	if (test_opt(sbi, GRPQUOTA))
 		seq_puts(seq, ",grpquota");
 #endif
+	if (test_opt(sbi, FORCE_USER))
+		seq_puts(seq, ",force_user");
 
 	return 0;
 }
