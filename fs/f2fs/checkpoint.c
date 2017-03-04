@@ -847,7 +847,8 @@ void update_dirty_page(struct inode *inode, struct page *page)
 		return;
 
 	spin_lock(&sbi->inode_lock[type]);
-	if (type != FILE_INODE || test_opt(sbi, DATA_FLUSH))
+	if (type != FILE_INODE || test_opt(sbi, DATA_FLUSH) ||
+				test_opt(sbi, FORCE_USER))
 		__add_dirty_inode(inode, type);
 	inode_inc_dirty_pages(inode);
 	spin_unlock(&sbi->inode_lock[type]);
@@ -865,7 +866,8 @@ void remove_dirty_inode(struct inode *inode)
 			!S_ISLNK(inode->i_mode))
 		return;
 
-	if (type == FILE_INODE && !test_opt(sbi, DATA_FLUSH))
+	if (type == FILE_INODE && !test_opt(sbi, DATA_FLUSH) &&
+				!test_opt(sbi, FORCE_USER))
 		return;
 
 	spin_lock(&sbi->inode_lock[type]);
@@ -1007,7 +1009,7 @@ retry_flush_nodes:
 
 	if (get_pages(sbi, F2FS_DIRTY_NODES)) {
 		up_write(&sbi->node_write);
-		err = sync_node_pages(sbi, &wbc);
+		err = sync_node_pages(sbi, &wbc, 0);
 		if (err) {
 			up_write(&sbi->node_change);
 			f2fs_unlock_all(sbi);

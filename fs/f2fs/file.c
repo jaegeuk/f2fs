@@ -2390,6 +2390,43 @@ out:
 	return ret;
 }
 
+static int f2fs_ioc_forward_sync(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = LONG_MAX,
+		.for_reclaim = 0,
+	};
+	struct blk_plug plug;
+	int ret, err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	ret = mnt_want_write_file(filp);
+	if (ret)
+		return ret;
+
+	/* flush user data */
+	blk_start_plug(&plug);
+	err = sync_dirty_inodes(sbi, FILE_INODE);
+	if (err)
+		goto out;
+
+	/* flush inode metadata */
+	err = f2fs_sync_inode_meta(sbi);
+	if (err)
+		goto out;
+
+	/* flush direct node blocks with ending fsync_mark */
+	err = sync_node_pages(sbi, &wbc, 2);
+out:
+	blk_finish_plug(&plug);
+	mnt_drop_write_file(filp);
+	return err;
+}
 
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -2432,6 +2469,8 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_move_range(filp, arg);
 	case F2FS_IOC_FLUSH_DEVICE:
 		return f2fs_ioc_flush_device(filp, arg);
+	case F2FS_IOC_FORWARD_SYNC:
+		return f2fs_ioc_forward_sync(filp, arg);
 	default:
 		return -ENOTTY;
 	}
@@ -2497,6 +2536,7 @@ long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case F2FS_IOC_DEFRAGMENT:
 	case F2FS_IOC_MOVE_RANGE:
 	case F2FS_IOC_FLUSH_DEVICE:
+	case F2FS_IOC_FORWARD_SYNC:
 		break;
 	default:
 		return -ENOIOCTLCMD;
