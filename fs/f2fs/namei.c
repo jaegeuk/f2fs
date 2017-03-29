@@ -424,6 +424,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 		goto fail;
 	}
 	f2fs_delete_entry(de, page, dir, inode);
+	f2fs_update_file_dist(inode, 1);
 	f2fs_unlock_op(sbi);
 
 	if (IS_DIRSYNC(dir))

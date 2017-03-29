@@ -1427,6 +1427,8 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		goto out_writepage;
 	}
 got_it:
+	if (fio->old_blkaddr != NEW_ADDR)
+		f2fs_update_file_dist(inode, 3);
 	/*
 	 * If current allocation needs SSR,
 	 * it had better in-place writes for updated data.

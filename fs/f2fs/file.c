@@ -205,6 +205,8 @@ static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 
 	trace_f2fs_sync_file_enter(inode);
 
+	f2fs_update_file_dist(inode, 2);
+
 	/* if fdatasync is triggered, let's do in-place-update */
 	if (datasync || get_dirty_pages(inode) <= SM_I(sbi)->min_fsync_blocks)
 		set_inode_flag(inode, FI_NEED_IPU);
@@ -1511,6 +1513,7 @@ static int f2fs_release_file(struct inode *inode, struct file *filp)
 		filemap_fdatawrite(inode->i_mapping);
 		clear_inode_flag(inode, FI_DROP_CACHE);
 	}
+	f2fs_update_file_dist(inode, 0);
 	return 0;
 }
 

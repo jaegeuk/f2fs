@@ -965,6 +965,9 @@ enum {
 	MAX_TIME,
 };
 
+#define FDIST_SIZE	9
+#define FDIST_NR	4
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -1022,6 +1025,8 @@ struct f2fs_sb_info {
 	struct list_head zombie_list;		/* extent zombie tree list */
 	atomic_t total_zombie_tree;		/* extent zombie tree count */
 	atomic_t total_ext_node;		/* extent info count */
+
+	atomic_t file_dist[FDIST_NR][FDIST_SIZE];
 
 	/* basic filesystem units */
 	unsigned int log_sectors_per_block;	/* log2 sectors per block */
@@ -2689,6 +2694,8 @@ struct f2fs_stat_info {
 	int cursec[NR_CURSEG_TYPE];
 	int curzone[NR_CURSEG_TYPE];
 
+	int file_dist[FDIST_NR][FDIST_SIZE];
+
 	unsigned int segment_count[2];
 	unsigned int block_count[2];
 	unsigned int inplace_count;
@@ -2698,6 +2705,30 @@ struct f2fs_stat_info {
 static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 {
 	return (struct f2fs_stat_info *)sbi->stat_info;
+}
+
+static inline void f2fs_update_file_dist(struct inode *inode, int i)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+
+	if (i_size_read(inode) < 3*1024)
+		atomic_inc(&sbi->file_dist[i][0]);
+	else if (i_size_read(inode) < 16*1024)
+		atomic_inc(&sbi->file_dist[i][1]);
+	else if (i_size_read(inode) < 64*1024)
+		atomic_inc(&sbi->file_dist[i][2]);
+	else if (i_size_read(inode) < 128*1024)
+		atomic_inc(&sbi->file_dist[i][3]);
+	else if (i_size_read(inode) < 1024*1024)
+		atomic_inc(&sbi->file_dist[i][4]);
+	else if (i_size_read(inode) < 2*1024*1024)
+		atomic_inc(&sbi->file_dist[i][5]);
+	else if (i_size_read(inode) < 64*1024*1024)
+		atomic_inc(&sbi->file_dist[i][6]);
+	else if (i_size_read(inode) < 128*1024*1024)
+		atomic_inc(&sbi->file_dist[i][7]);
+	else
+		atomic_inc(&sbi->file_dist[i][8]);
 }
 
 #define stat_inc_cp_count(si)		((si)->cp_count++)
@@ -2834,6 +2865,7 @@ void f2fs_destroy_root_stats(void);
 #define stat_inc_tot_blk_count(si, blks)		do { } while (0)
 #define stat_inc_data_blk_count(sbi, blks, gc_type)	do { } while (0)
 #define stat_inc_node_blk_count(sbi, blks, gc_type)	do { } while (0)
+#define f2fs_update_file_dist(inode, i)			do { } while (0)
 
 static inline int f2fs_build_stats(struct f2fs_sb_info *sbi) { return 0; }
 static inline void f2fs_destroy_stats(struct f2fs_sb_info *sbi) { }

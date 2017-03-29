@@ -2363,6 +2363,12 @@ try_onemore:
 			INIT_LIST_HEAD(&sbi->write_io[i][j].io_list);
 		}
 	}
+	for (i = 0; i < FDIST_NR; i++) {
+		int j;
+		for (j = 0; j < FDIST_SIZE; j++) {
+			atomic_set(&sbi->file_dist[i][j], 0);
+		}
+	}
 
 	init_rwsem(&sbi->cp_rwsem);
 	init_waitqueue_head(&sbi->cp_wait);
