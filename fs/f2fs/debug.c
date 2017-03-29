@@ -120,6 +120,12 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		si->block_count[i] = sbi->block_count[i];
 	}
 
+	for (i = 0; i < FDIST_NR; i++) {
+		int j;
+		for (j = 0; j < FDIST_SIZE; j++)
+			si->file_dist[i][j] = atomic_read(&sbi->file_dist[i][j]);
+	}
+
 	si->inplace_count = atomic_read(&sbi->inplace_count);
 }
 
@@ -254,9 +260,10 @@ get_cache:
 
 static int stat_show(struct seq_file *s, void *v)
 {
+	char *dist[FDIST_NR] = { "Close", "Delete", "Fsync", "Update" };
 	struct f2fs_stat_info *si;
 	int i = 0;
-	int j;
+	int j, k;
 
 	mutex_lock(&f2fs_stat_mutex);
 	list_for_each_entry(si, &f2fs_stat_list, stat_list) {
@@ -398,6 +405,19 @@ static int stat_show(struct seq_file *s, void *v)
 		update_sit_info(si->sbi);
 		seq_printf(s, "\nBDF: %u, avg. vblocks: %u\n",
 			   si->bimodal, si->avg_vblocks);
+
+		seq_printf(s, "\n%7s%8s%8s%8s%8s%8s%8s%8s%8s%8s%8s\n",
+				"Type", "~3K", "~16K", "~64K", "~128K",
+				"~1M", "~2M", "~64M", "~128M", "Over", "=Total");
+		for (j = 0; j < FDIST_NR; j++) {
+			int total = 0;
+			seq_printf(s, "%7s", dist[j]);
+			for (k = 0; k < FDIST_SIZE; k++) {
+				seq_printf(s, "%8u", si->file_dist[j][k]);
+				total += si->file_dist[j][k];
+			}
+			seq_printf(s, "%8u\n", total);
+		}
 
 		/* memory footprint */
 		update_mem_info(si->sbi);
