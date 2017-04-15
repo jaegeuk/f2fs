@@ -703,13 +703,20 @@ out:
 }
 
 static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
-							unsigned int segno, int off)
+			unsigned int fake, unsigned int segno, int off)
 {
 	struct page *page;
 
-	page = get_lock_data_page(inode, bidx, true);
-	if (IS_ERR(page))
-		return;
+	if (fake == NULL_SEGNO || !S_ISREG(inode->i_mode)) {
+		page = get_lock_data_page(inode, bidx, true);
+		if (IS_ERR(page))
+			return;
+	} else {
+		page = f2fs_grab_cache_page(inode->i_mapping, bidx, true);
+		if (!page)
+			return;
+		SetPageUptodate(page);
+	}
 
 	if (!check_valid_map(F2FS_I_SB(inode), segno, off))
 		goto out;
@@ -764,7 +771,8 @@ out:
  * If the parent node is not valid or the data block address is different,
  * the victim data block is ignored.
  */
-static void gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
+static void gc_data_segment(struct f2fs_sb_info *sbi, unsigned int fake,
+		struct f2fs_summary *sum,
 		struct gc_inode_list *gc_list, unsigned int segno, int gc_type)
 {
 	struct super_block *sb = sbi->sb;
@@ -827,16 +835,17 @@ next_step:
 				continue;
 			}
 
-			start_bidx = start_bidx_of_node(nofs, inode);
-			data_page = get_read_data_page(inode,
+			if (fake == NULL_SEGNO || !S_ISREG(inode->i_mode)) {
+				start_bidx = start_bidx_of_node(nofs, inode);
+				data_page = get_read_data_page(inode,
 					start_bidx + ofs_in_node, REQ_RAHEAD,
 					true);
-			if (IS_ERR(data_page)) {
-				iput(inode);
-				continue;
+				if (IS_ERR(data_page)) {
+					iput(inode);
+					continue;
+				}
+				f2fs_put_page(data_page, 0);
 			}
-
-			f2fs_put_page(data_page, 0);
 			add_gc_inode(gc_list, inode);
 			continue;
 		}
@@ -863,7 +872,7 @@ next_step:
 			if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
 				move_encrypted_block(inode, start_bidx, segno, off);
 			else
-				move_data_page(inode, start_bidx, gc_type, segno, off);
+				move_data_page(inode, start_bidx, gc_type, fake, segno, off);
 
 			if (locked) {
 				up_write(&fi->dio_rwsem[WRITE]);
@@ -892,6 +901,7 @@ static int __get_victim(struct f2fs_sb_info *sbi, unsigned int *victim,
 }
 
 static int do_garbage_collect(struct f2fs_sb_info *sbi,
+				unsigned int fake,
 				unsigned int start_segno,
 				struct gc_inode_list *gc_list, int gc_type)
 {
@@ -942,7 +952,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 		if (type == SUM_TYPE_NODE)
 			gc_node_segment(sbi, sum->entries, segno, gc_type);
 		else
-			gc_data_segment(sbi, sum->entries, gc_list, segno,
+			gc_data_segment(sbi, fake, sum->entries, gc_list, segno,
 								gc_type);
 
 		stat_inc_seg_count(sbi, type, gc_type);
@@ -977,6 +987,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi, bool sync,
 		.ilist = LIST_HEAD_INIT(gc_list.ilist),
 		.iroot = RADIX_TREE_INIT(GFP_NOFS),
 	};
+	unsigned int fake = segno;
 
 	cpc.reason = __get_cp_reason(sbi);
 gc_more:
@@ -1012,7 +1023,7 @@ gc_more:
 		goto stop;
 	ret = 0;
 
-	if (do_garbage_collect(sbi, segno, &gc_list, gc_type) &&
+	if (do_garbage_collect(sbi, fake, segno, &gc_list, gc_type) &&
 			gc_type == FG_GC)
 		sec_freed++;
 
