@@ -1504,6 +1504,9 @@ static int __write_data_page(struct page *page, bool *submitted,
 
 	trace_f2fs_writepage(page, DATA);
 
+	if (test_opt(sbi, FORCE_USER))
+		fio.op_flags = REQ_SYNC;
+
 	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		goto redirty_out;
 

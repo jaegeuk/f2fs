@@ -569,7 +569,7 @@ static inline bool need_inplace_update_policy(struct inode *inode,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	unsigned int policy = SM_I(sbi)->ipu_policy;
 
-	if (test_opt(sbi, LFS))
+	if (test_opt(sbi, LFS) || test_opt(sbi, FORCE_USER))
 		return false;
 
 	/* if this is cold file, we should overwrite to avoid fragmentation */
