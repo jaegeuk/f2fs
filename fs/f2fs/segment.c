@@ -1062,6 +1062,10 @@ static void __check_sit_bitmap(struct f2fs_sb_info *sbi,
 			size = max_blocks;
 		map = (unsigned long *)(sentry->cur_valid_map);
 		offset = __find_rev_next_bit(map, size, offset);
+
+		if (unlikely(f2fs_cp_error(sbi)))
+			break;
+
 		f2fs_bug_on(sbi, offset != size);
 		blk = START_BLOCK(sbi, segno + 1);
 	}
@@ -1131,7 +1135,8 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 	if (dc->state != D_PREP)
 		return 0;
 
-	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK))
+	if (unlikely(is_sbi_flag_set(sbi, SBI_NEED_FSCK) ||
+				f2fs_cp_error(sbi)))
 		return 0;
 
 	trace_f2fs_issue_discard(bdev, dc->start, dc->len);
@@ -1733,7 +1738,8 @@ static int issue_discard_thread(void *data)
 			continue;
 		if (kthread_should_stop())
 			return 0;
-		if (is_sbi_flag_set(sbi, SBI_NEED_FSCK)) {
+		if (unlikely(is_sbi_flag_set(sbi, SBI_NEED_FSCK) ||
+					f2fs_cp_error(sbi))) {
 			wait_ms = dpolicy.max_interval;
 			continue;
 		}
