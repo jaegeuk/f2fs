@@ -50,6 +50,12 @@ static int gc_thread_func(void *data)
 		if (kthread_should_stop())
 			break;
 
+		if (unlikely(is_sbi_flag_set(sbi, SBI_NEED_FSCK) ||
+					f2fs_cp_error(sbi))) {
+			increase_sleep_time(gc_th, &wait_ms);
+			continue;
+		}
+
 		if (sbi->sb->s_writers.frozen >= SB_FREEZE_WRITE) {
 			increase_sleep_time(gc_th, &wait_ms);
 			stat_other_skip_bggc_count(sbi);
