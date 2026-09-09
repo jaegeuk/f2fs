@@ -752,7 +752,7 @@ void f2fs_update_inode(struct inode *inode,
 #endif
 }
 
-void f2fs_update_inode_page(struct inode *inode)
+void f2fs_update_inode_cache(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_cached_block *node_entry;
@@ -807,7 +807,7 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	 * We need to balance fs here to prevent from producing dirty node pages
 	 * during the urgent cleaning time when running out of free sections.
 	 */
-	f2fs_update_inode_page(inode);
+	f2fs_update_inode_cache(inode);
 	if (wbc && wbc->nr_to_write)
 		f2fs_balance_fs(sbi, true);
 	return 0;
@@ -945,13 +945,13 @@ error_check:
 	if (!err)
 		goto unfreeze_out;
 
-	f2fs_update_inode_page(inode);
+	f2fs_update_inode_cache(inode);
 
 	if (dquot_initialize_needed(inode))
 		set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
 
 	/*
-	 * If both f2fs_truncate() and f2fs_update_inode_page() failed
+	 * If both f2fs_truncate() and f2fs_update_inode_cache() failed
 	 * due to fuzzed corrupted inode, call f2fs_inode_synced() to
 	 * avoid triggering later f2fs_bug_on().
 	 */
@@ -1070,7 +1070,7 @@ void f2fs_handle_failed_inode(struct inode *inode,
 	 * we must call this to avoid inode being remained as dirty, resulting
 	 * in a panic when flushing dirty inodes in gdirty_list.
 	 */
-	f2fs_update_inode_page(inode);
+	f2fs_update_inode_cache(inode);
 	f2fs_inode_synced(inode);
 
 	/* don't make bad inode, since it becomes a regular file. */

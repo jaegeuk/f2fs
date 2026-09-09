@@ -1766,7 +1766,7 @@ static bool __write_node_cache(struct f2fs_cached_block *entry,
 	unsigned int seq;
 
 	if (unlikely(f2fs_cp_error(sbi))) {
-		/* keep node pages in remount-ro mode */
+		/* keep node caches in remount-ro mode */
 		if (F2FS_OPTION(sbi).errors == MOUNT_ERRORS_READONLY)
 			goto redirty_out;
 		f2fs_cache_clear_uptodate(entry);
@@ -1836,7 +1836,7 @@ static bool __write_node_cache(struct f2fs_cached_block *entry,
 	f2fs_start_cache_writeback(entry);
 
 	fio.old_blkaddr = ni.blk_addr;
-	f2fs_do_write_node_page(nid, &fio);
+	f2fs_do_write_node_cache(nid, &fio);
 	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(sbi, entry));
 	dec_cache_count(sbi, F2FS_DIRTY_NODES);
 	f2fs_up_read_trace(&sbi->node_write, &lc);
@@ -1866,7 +1866,7 @@ int f2fs_write_node_cache(struct f2fs_cached_block *node_entry, int sync_mode,
 	int err = 0;
 
 	if (!sync_mode) {
-		/* set page dirty and write it */
+		/* set cache dirty and write it */
 		if (!f2fs_cache_test_writeback(node_entry))
 			f2fs_mark_cache_dirty(node_entry);
 		goto out_entry;
@@ -2269,9 +2269,9 @@ int f2fs_write_node_caches(struct f2fs_sb_info *sbi)
 	/* balancing f2fs's metadata in background */
 	f2fs_balance_fs_bg(sbi, true);
 
-	/* collect a number of dirty node pages and write together */
+	/* collect a number of dirty node caches and write together */
 	if (get_nr_caches(sbi, F2FS_DIRTY_NODES) <
-					nr_pages_to_skip(sbi, NODE))
+					nr_caches_to_skip(sbi, NODE))
 		return -EAGAIN;
 
 	if (atomic_read(&sbi->wb_sync_req[NODE])) {
@@ -2404,7 +2404,7 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 		 *                     - f2fs_balance_fs_bg
 		 *                      - f2fs_build_free_nids
 		 *                       - __f2fs_build_free_nids
-		 *                        - scan_nat_page
+		 *                        - scan_nat_blocks
 		 *                         - add_free_nid
 		 *                          - __lookup_nat_cache
 		 *  - f2fs_add_link
@@ -2462,7 +2462,7 @@ static void remove_free_nid(struct f2fs_sb_info *sbi, nid_t nid)
 		kmem_cache_free(free_nid_slab, i);
 }
 
-static int scan_nat_page(struct f2fs_sb_info *sbi,
+static int scan_nat_block(struct f2fs_sb_info *sbi,
 			struct f2fs_nat_block *nat_blk, nid_t start_nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
@@ -2579,7 +2579,7 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 			return 0;
 	}
 
-	/* readahead nat pages to be scanned */
+	/* readahead nat blocks to be scanned */
 	f2fs_ra_meta_caches(sbi, NAT_BLOCK_OFFSET(sbi, nid), FREE_NID_BLOCKS,
 							META_NAT, true);
 
@@ -2593,7 +2593,7 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 			if (IS_ERR(entry)) {
 				ret = PTR_ERR(entry);
 			} else {
-				ret = scan_nat_page(sbi, cache_address(entry),
+				ret = scan_nat_block(sbi, cache_address(entry),
 						nid);
 				f2fs_put_cache(entry, true);
 			}
@@ -2621,10 +2621,10 @@ static int __f2fs_build_free_nids(struct f2fs_sb_info *sbi,
 			break;
 	}
 
-	/* go to the next free nat pages to find free nids abundantly */
+	/* go to the next free nat blocks to find free nids abundantly */
 	nm_i->next_scan_nid = nid;
 
-	/* find free nids from current sum_pages */
+	/* find free nids from current sum_blocks */
 	scan_curseg_cache(sbi);
 
 	f2fs_up_read_trace(&nm_i->nat_tree_lock, &lc);
@@ -2695,7 +2695,7 @@ retry:
 	}
 	spin_unlock(&nm_i->nid_list_lock);
 
-	/* Let's scan nat pages and its caches to get free nids */
+	/* Let's scan nat blocks and its caches to get free nids */
 	if (!f2fs_build_free_nids(sbi, true, false))
 		goto retry;
 	return false;
@@ -2856,9 +2856,9 @@ recover_xnid:
 	}
 
 	f2fs_alloc_nid_done(sbi, new_xnid);
-	f2fs_update_inode_page(inode);
+	f2fs_update_inode_cache(inode);
 
-	/* 3: update and set xattr node page dirty */
+	/* 3: update and set xattr node cache dirty */
 	if (entry) {
 		memcpy(CACHED_NODE(xentry), CACHED_NODE(entry),
 				VALID_XATTR_BLOCK_SIZE(inode));
@@ -2869,7 +2869,8 @@ recover_xnid:
 	return 0;
 }
 
-int f2fs_recover_inode_page(struct f2fs_sb_info *sbi, struct f2fs_cached_block *entry)
+int f2fs_recover_inode_cache(struct f2fs_sb_info *sbi,
+				struct f2fs_cached_block *entry)
 {
 	struct f2fs_inode *src, *dst;
 	nid_t ino = ino_of_node(sbi, entry);
@@ -2944,20 +2945,20 @@ int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 {
 	struct f2fs_summary *sum_entry;
 	block_t addr;
-	int i, idx, last_offset, nrpages;
+	int i, idx, last_offset, nrblocks;
 
 	/* scan the node segment */
 	last_offset = BLKS_PER_SEG(sbi);
 	addr = START_BLOCK(sbi, segno);
 	sum_entry = sum_entries(sum);
 
-	for (i = 0; i < last_offset; i += nrpages, addr += nrpages) {
-		nrpages = bio_max_segs(last_offset - i);
+	for (i = 0; i < last_offset; i += nrblocks, addr += nrblocks) {
+		nrblocks = bio_max_segs(last_offset - i);
 
-		/* readahead node pages */
-		f2fs_ra_meta_caches(sbi, addr, nrpages, META_POR, true);
+		/* readahead node blocks */
+		f2fs_ra_meta_caches(sbi, addr, nrblocks, META_POR, true);
 
-		for (idx = addr; idx < addr + nrpages; idx++) {
+		for (idx = addr; idx < addr + nrblocks; idx++) {
 			struct f2fs_cached_block *entry =
 				f2fs_get_tmp_cache(sbi, idx);
 
@@ -2973,7 +2974,7 @@ int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 			f2fs_put_cache(entry, true);
 		}
 
-		f2fs_truncate_meta_caches(sbi, addr, nrpages);
+		f2fs_truncate_meta_caches(sbi, addr, nrblocks);
 	}
 	return 0;
 }
@@ -3088,7 +3089,7 @@ static int __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 	/*
 	 * there are two steps to flush nat entries:
 	 * #1, flush nat entries to journal in current hot data summary block.
-	 * #2, flush nat entries to nat page.
+	 * #2, flush nat entries to nat block.
 	 */
 	if (enabled_nat_bits(sbi, cpc) ||
 		!__has_cursum_space(sbi, journal, set->entry_cnt, NAT_JOURNAL))

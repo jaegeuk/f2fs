@@ -3999,7 +3999,7 @@ struct inode *f2fs_iget(struct super_block *sb, unsigned long ino);
 struct inode *f2fs_iget_retry(struct super_block *sb, unsigned long ino);
 int f2fs_try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink);
 void f2fs_update_inode(struct inode *inode, struct f2fs_cached_block *entry);
-void f2fs_update_inode_page(struct inode *inode);
+void f2fs_update_inode_cache(struct inode *inode);
 int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc);
 void f2fs_remove_donate_inode(struct inode *inode);
 void f2fs_evict_inode(struct inode *inode);
@@ -4159,7 +4159,8 @@ void f2fs_alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid);
 int f2fs_try_to_free_nids(struct f2fs_sb_info *sbi, int nr_shrink);
 int f2fs_recover_inline_xattr(struct inode *inode, struct f2fs_cached_block *entry);
 int f2fs_recover_xattr_data(struct inode *inode, struct f2fs_cached_block *entry);
-int f2fs_recover_inode_page(struct f2fs_sb_info *sbi, struct f2fs_cached_block *entry);
+int f2fs_recover_inode_cache(struct f2fs_sb_info *sbi,
+			struct f2fs_cached_block *entry);
 int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 			unsigned int segno, struct f2fs_summary_block *sum);
 int f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc);
@@ -4218,7 +4219,7 @@ void f2fs_update_meta_page(struct f2fs_sb_info *sbi, void *src,
 void f2fs_do_write_meta_cache(struct f2fs_sb_info *sbi,
 			struct f2fs_cached_block *entry,
 			enum iostat_type io_type);
-void f2fs_do_write_node_page(unsigned int nid, struct f2fs_io_info *fio);
+void f2fs_do_write_node_cache(unsigned int nid, struct f2fs_io_info *fio);
 void f2fs_outplace_write_data(struct dnode_of_data *dn,
 			struct f2fs_io_info *fio);
 int f2fs_inplace_write_data(struct f2fs_io_info *fio);

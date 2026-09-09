@@ -462,7 +462,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 			if (!check_only &&
 					IS_INODE(sbi, entry) &&
 					is_dent_dnode(sbi, entry)) {
-				err = f2fs_recover_inode_page(sbi, entry);
+				err = f2fs_recover_inode_cache(sbi, entry);
 				if (err) {
 					f2fs_put_cache(entry, true);
 					break;

@@ -3852,7 +3852,7 @@ static int f2fs_ioc_reserve_dev_alias(struct file *filp)
 	f2fs_reserve_device_alias(sbi, ei.blk, ei.len);
 
 	i_size_write(inode, (loff_t)ei.len << sbi->log_blocksize);
-	f2fs_update_inode_page(inode);
+	f2fs_update_inode_cache(inode);
 
 	spin_lock(&FREE_I(sbi)->segmap_lock);
 	FDEV(f2fs_target_device_index(sbi, ei.blk)).is_reserving = false;
@@ -3946,7 +3946,7 @@ static int f2fs_ioc_release_dev_alias(struct file *filp)
 		goto out_inode_unlock;
 	}
 
-	f2fs_update_inode_page(inode);
+	f2fs_update_inode_cache(inode);
 
 	f2fs_unlock_op(sbi, &lc);
 	f2fs_up_write_trace(&sbi->gc_lock, &glc);

@@ -3774,7 +3774,7 @@ static inline void update_skipped_write(struct f2fs_sb_info *sbi,
 
 	if (is_sbi_flag_set(sbi, SBI_ENABLE_CHECKPOINT) && skipped &&
 		wbc->sync_mode == WB_SYNC_ALL)
-		atomic_add(skipped, &sbi->nr_pages[F2FS_SKIPPED_WRITE]);
+		atomic_add(skipped, &sbi->nr_caches[F2FS_SKIPPED_WRITE]);
 }
 
 static int __f2fs_write_data_pages(struct address_space *mapping,
@@ -3797,7 +3797,7 @@ static int __f2fs_write_data_pages(struct address_space *mapping,
 
 	if ((S_ISDIR(inode->i_mode) || IS_NOQUOTA(inode)) &&
 			wbc->sync_mode == WB_SYNC_NONE &&
-			get_dirty_pages(inode) < nr_pages_to_skip(sbi, DATA) &&
+			get_dirty_pages(inode) < nr_caches_to_skip(sbi, DATA) &&
 			f2fs_available_free_memory(sbi, DIRTY_DENTS))
 		goto skip_write;
 

@@ -592,7 +592,7 @@ void f2fs_write_meta_caches(struct f2fs_sb_info *sbi)
 
 	/* collect a number of dirty meta caches and write together */
 	if (get_nr_caches(sbi, F2FS_DIRTY_META) <
-			nr_pages_to_skip(sbi, META))
+	    nr_caches_to_skip(sbi, META))
 		return;
 
 	/* if locked failed, cp will flush dirty caches instead */
@@ -934,7 +934,7 @@ void f2fs_add_orphan_inode(struct inode *inode)
 {
 	/* add new orphan ino entry into list */
 	f2fs_add_ino_entry(F2FS_I_SB(inode), inode->i_ino, ORPHAN_INO);
-	f2fs_update_inode_page(inode);
+	f2fs_update_inode_cache(inode);
 }
 
 void f2fs_remove_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
@@ -1438,7 +1438,7 @@ static int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi)
 
 			/* it's on eviction */
 			if (is_inode_flag_set(inode, FI_DIRTY_INODE))
-				f2fs_update_inode_page(inode);
+				f2fs_update_inode_cache(inode);
 			iput(inode);
 		}
 	}
