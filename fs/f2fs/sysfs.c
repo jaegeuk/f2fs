@@ -1261,7 +1261,7 @@ DCC_INFO_GENERAL_RW_ATTR(discard_io_aware);
 /* NM_INFO ATTR */
 NM_INFO_RW_ATTR(max_roll_forward_node_blocks, max_rf_node_blocks);
 NM_INFO_GENERAL_RW_ATTR(ram_thresh);
-NM_INFO_GENERAL_RW_ATTR(ra_nid_pages);
+NM_INFO_GENERAL_RW_ATTR(ra_nid_caches);
 NM_INFO_GENERAL_RW_ATTR(dirty_nats_ratio);
 
 /* F2FS_SBI ATTR */
@@ -1454,7 +1454,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(migration_window_granularity),
 	ATTR_LIST(dir_level),
 	ATTR_LIST(ram_thresh),
-	ATTR_LIST(ra_nid_pages),
+	ATTR_LIST(ra_nid_caches),
 	ATTR_LIST(dirty_nats_ratio),
 	ATTR_LIST(max_roll_forward_node_blocks),
 	ATTR_LIST(cp_interval),

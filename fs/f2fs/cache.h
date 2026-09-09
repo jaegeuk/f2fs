@@ -195,7 +195,8 @@ void f2fs_cache_update_tag(struct f2fs_cached_block *entry,
 		unsigned int clear_from, unsigned int set_to);
 struct f2fs_cached_block *f2fs_grab_cache(struct f2fs_cached_block_list *cache,
 				unsigned long index, int flags);
-void __f2fs_truncate_cache(struct f2fs_cached_block *entry, bool drop_dirty);
+void f2fs_truncate_locked_cache(struct f2fs_cached_block *entry,
+				bool drop_dirty);
 void f2fs_truncate_cache(struct f2fs_cached_block *entry, bool drop_dirty);
 void f2fs_drop_cache_range(struct f2fs_cached_block_list *cache,
 		unsigned long start, unsigned long len, bool drop_dirty);

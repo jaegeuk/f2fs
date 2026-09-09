@@ -125,7 +125,7 @@ static int f2fs_cache_refcount(struct f2fs_cached_block *entry)
 	return atomic_read(&entry->refcount);
 }
 
-static void __f2fs_free_cache(struct f2fs_cached_block *entry)
+static void f2fs_do_free_cache(struct f2fs_cached_block *entry)
 {
 	kfree(entry->data);
 	kfree(entry);
@@ -135,7 +135,7 @@ static void f2fs_free_cache(struct f2fs_cached_block *entry)
 {
 	WARN_ON_ONCE(!list_empty(&entry->list));
 	WARN_ON_ONCE(f2fs_cache_refcount(entry));
-	__f2fs_free_cache(entry);
+	f2fs_do_free_cache(entry);
 }
 
 void f2fs_cache_get(struct f2fs_cached_block *entry)
@@ -229,7 +229,7 @@ static struct f2fs_cached_block *f2fs_insert_cache(
 
 	if (new != e) {
 		f2fs_bug_on(cache->sbi, f2fs_cache_refcount(new));
-		__f2fs_free_cache(new);
+		f2fs_do_free_cache(new);
 	}
 
 	return e;
@@ -412,11 +412,14 @@ static void f2fs_do_truncate_cache(struct f2fs_cached_block *entry,
 	struct f2fs_cached_block_list *cache = entry->cache;
 	unsigned long flags;
 
-	if (!drop_dirty &&
-		(f2fs_cache_test_dirty(entry) ||
-		f2fs_cache_test_writeback(entry)))
+	if (drop_dirty)
+		goto drop_it;
+
+	if (f2fs_cache_test_dirty(entry) ||
+	    f2fs_cache_test_writeback(entry))
 		return;
 
+drop_it:
 	f2fs_cache_wait_writeback(entry);
 	f2fs_drop_cache_dirty(entry);
 
@@ -440,7 +443,8 @@ static void f2fs_do_truncate_cache(struct f2fs_cached_block *entry,
 	spin_unlock(&cache->list_lock);
 }
 
-void __f2fs_truncate_cache(struct f2fs_cached_block *entry, bool drop_dirty)
+void f2fs_truncate_locked_cache(struct f2fs_cached_block *entry,
+				bool drop_dirty)
 {
 	if (!entry->cache)
 		return;
@@ -450,7 +454,7 @@ void __f2fs_truncate_cache(struct f2fs_cached_block *entry, bool drop_dirty)
 void f2fs_truncate_cache(struct f2fs_cached_block *entry, bool drop_dirty)
 {
 	f2fs_lock_cache(entry);
-	__f2fs_truncate_cache(entry, drop_dirty);
+	f2fs_truncate_locked_cache(entry, drop_dirty);
 	f2fs_unlock_cache(entry);
 }
 

@@ -1985,7 +1985,7 @@ next:
 		if (entry->ino != ino)
 			goto unlock;
 
-		__f2fs_truncate_cache(entry, false);
+		f2fs_truncate_locked_cache(entry, false);
 unlock:
 		f2fs_unlock_cache(entry);
 	}

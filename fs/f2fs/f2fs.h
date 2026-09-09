@@ -1074,7 +1074,7 @@ struct f2fs_nm_info {
 	nid_t next_scan_nid;		/* the next nid to be scanned */
 	nid_t max_rf_node_blocks;	/* max # of nodes for recovery */
 	unsigned int ram_thresh;	/* control the memory footprint */
-	unsigned int ra_nid_pages;	/* # of nid pages to be readaheaded */
+	unsigned int ra_nid_blocks;	/* # of nid blocks to be readaheaded */
 	unsigned int dirty_nats_ratio;	/* control dirty nats ratio threshold */
 
 	/* NAT cache management */
@@ -4133,7 +4133,7 @@ int f2fs_truncate_xattr_node(struct inode *inode);
 int f2fs_wait_on_node_caches_writeback(struct f2fs_sb_info *sbi,
 					unsigned int seq_id);
 int f2fs_write_node_caches(struct f2fs_sb_info *sbi);
-int f2fs_remove_inode_page(struct inode *inode);
+int f2fs_remove_inode_cache(struct inode *inode);
 struct f2fs_cached_block *f2fs_new_inode_cache(struct inode *inode);
 struct f2fs_cached_block *f2fs_new_node_cache(struct dnode_of_data *dn, unsigned int ofs);
 void f2fs_ra_node_cache(struct f2fs_sb_info *sbi, nid_t nid);

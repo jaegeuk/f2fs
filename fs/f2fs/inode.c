@@ -913,7 +913,7 @@ retry:
 		goto error_check;
 
 	f2fs_lock_op(sbi, &lc);
-	err = f2fs_remove_inode_page(inode);
+	err = f2fs_remove_inode_cache(inode);
 	f2fs_unlock_op(sbi, &lc);
 
 	if (err == -ENOENT) {
