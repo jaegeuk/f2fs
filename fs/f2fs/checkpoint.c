@@ -1485,10 +1485,6 @@ static bool __need_flush_quota(struct f2fs_sb_info *sbi)
  */
 static int block_operations(struct f2fs_sb_info *sbi)
 {
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = LONG_MAX,
-	};
 	int err = 0, cnt = 0;
 
 	/*
@@ -1552,7 +1548,8 @@ retry_flush_nodes:
 	if (get_pages(sbi, F2FS_DIRTY_NODES)) {
 		f2fs_up_write(&sbi->node_write);
 		atomic_inc(&sbi->wb_sync_req[NODE]);
-		err = f2fs_sync_node_pages(sbi, &wbc, false, FS_CP_NODE_IO);
+		err = f2fs_writeback_node_caches(sbi, LONG_MAX,
+			true, false, FS_CP_NODE_IO);
 		atomic_dec(&sbi->wb_sync_req[NODE]);
 		if (err) {
 			f2fs_up_write(&sbi->node_change);
