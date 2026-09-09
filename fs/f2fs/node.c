@@ -86,7 +86,7 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 	} else if (type == DIRTY_DENTS) {
 		if (bdi_wb_dirty_exceeded(sbi->sb->s_bdi))
 			return false;
-		mem_size = get_pages(sbi, F2FS_DIRTY_DENTS);
+		mem_size = get_nr_caches(sbi, F2FS_DIRTY_DENTS);
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	} else if (type == INO_ENTRIES) {
 		int i;
@@ -1773,7 +1773,7 @@ static bool __write_node_cache(struct f2fs_cached_block *entry,
 		f2fs_cache_clear_uptodate(entry);
 		f2fs_cache_update_tag(entry, F2FS_CACHE_TAG_DIRTY,
 					F2FS_CACHE_TAG_NONE);
-		dec_page_count(entry->cache->sbi, F2FS_DIRTY_NODES);
+		dec_cache_count(entry->cache->sbi, F2FS_DIRTY_NODES);
 		f2fs_unlock_cache(entry);
 		return true;
 	}
@@ -1805,7 +1805,7 @@ static bool __write_node_cache(struct f2fs_cached_block *entry,
 		f2fs_cache_clear_uptodate(entry);
 		f2fs_cache_update_tag(entry, F2FS_CACHE_TAG_DIRTY,
 					F2FS_CACHE_TAG_NONE);
-		dec_page_count(entry->cache->sbi, F2FS_DIRTY_NODES);
+		dec_cache_count(entry->cache->sbi, F2FS_DIRTY_NODES);
 		f2fs_up_read_trace(&sbi->node_write, &lc);
 		f2fs_unlock_cache(entry);
 		return true;
@@ -1839,7 +1839,7 @@ static bool __write_node_cache(struct f2fs_cached_block *entry,
 	fio.old_blkaddr = ni.blk_addr;
 	f2fs_do_write_node_page(nid, &fio);
 	set_node_addr(sbi, &ni, fio.new_blkaddr, is_fsync_dnode(sbi, entry));
-	dec_page_count(sbi, F2FS_DIRTY_NODES);
+	dec_cache_count(sbi, F2FS_DIRTY_NODES);
 	f2fs_up_read_trace(&sbi->node_write, &lc);
 
 	f2fs_unlock_cache(entry);
@@ -2271,7 +2271,7 @@ int f2fs_write_node_caches(struct f2fs_sb_info *sbi)
 	f2fs_balance_fs_bg(sbi, true);
 
 	/* collect a number of dirty node pages and write together */
-	if (get_pages(sbi, F2FS_DIRTY_NODES) <
+	if (get_nr_caches(sbi, F2FS_DIRTY_NODES) <
 					nr_pages_to_skip(sbi, NODE))
 		return -EAGAIN;
 
