@@ -119,7 +119,7 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 		 * exceed threshold, deny caching compress page.
 		 */
 		res = (free_ram > avail_ram * sbi->compress_watermark / 100) &&
-			(COMPRESS_MAPPING(sbi)->nrpages <
+			(COMPRESS_CACHE(sbi)->num_entries <
 			 free_ram * sbi->compress_percent / 100);
 #else
 		res = false;
